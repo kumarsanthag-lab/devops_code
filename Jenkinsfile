@@ -34,13 +34,13 @@ pipeline {
       steps {
         script {
           if (env.BRANCH_NAME == 'develop' || env.BRANCH_NAME.startsWith('feature/')) {
-            sh 'docker compose --profile dev up -d'
+            sh 'docker compose up -d dev'
           }
           else if (env.BRANCH_NAME.startsWith('release/')) {
-            sh 'docker compose --profile qa up -d'
+            sh 'docker compose up -d qa'
           }
           else if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME.startsWith('hotfix/')) {
-            sh 'docker compose --profile uat up -d'
+            sh 'docker compose up -d uat'
           }
           else {
             error "No deployment rule for branch ${env.BRANCH_NAME}"
