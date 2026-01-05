@@ -1,36 +1,17 @@
 pipeline {
     agent any
 
-    options {
-        skipDefaultCheckout(true)
-    }
-
     environment {
-        DEPLOY_ENV   = ''
-        SERVER_HOST  = ''
-        SSH_CRED_ID  = ''
+        DEPLOY_ENV = ""
+        DEPLOY_SERVER = ""
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                echo "Branch detected: ${env.BRANCH_NAME}"
+                echo "Branch: ${env.BRANCH_NAME}"
                 checkout scm
-            }
-        }
-
-        stage('Build') {
-            steps {
-                echo "Building application..."
-                sh 'echo "Build completed"'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                echo "Running tests..."
-                sh 'echo "Tests passed"'
             }
         }
 
@@ -38,20 +19,17 @@ pipeline {
             steps {
                 script {
                     if (env.BRANCH_NAME == 'main') {
-                        env.DEPLOY_ENV  = 'prod'
-                        env.SERVER_HOST = 'prod.example.com'
-                        env.SSH_CRED_ID = 'prod-server-ssh'
-                    }
-                    else if (env.BRANCH_NAME.startsWith('release/')) {
-                        env.DEPLOY_ENV  = 'test'
-                        env.SERVER_HOST = 'test.example.com'
-                        env.SSH_CRED_ID = 'test-server-ssh'
-                    }
+                        env.DEPLOY_ENV = 'production'
+                        env.DEPLOY_SERVER = 'prod-server-ip'
+                    } 
+                    else if (env.BRANCH_NAME == 'release') {
+                        env.DEPLOY_ENV = 'staging'
+                        env.DEPLOY_SERVER = 'staging-server-ip'
+                    } 
                     else if (env.BRANCH_NAME.startsWith('feature/')) {
-                        env.DEPLOY_ENV  = 'dev'
-                        env.SERVER_HOST = 'dev.example.com'
-                        env.SSH_CRED_ID = 'dev-server-ssh'
-                    }
+                        env.DEPLOY_ENV = 'development'
+                        env.DEPLOY_SERVER = 'dev-server-ip'
+                    } 
                     else {
                         error "No deployment rule defined for branch: ${env.BRANCH_NAME}"
                     }
@@ -61,24 +39,20 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo "Deploying to ${env.DEPLOY_ENV.toUpperCase()}"
-                echo "Target Server: ${env.SERVER_HOST}"
+                echo "Deploying to ${env.DEPLOY_ENV}"
+                echo "Target Server: ${env.DEPLOY_SERVER}"
 
-                sshagent(credentials: [env.SSH_CRED_ID]) {
-                    sh """
-                      ssh -o StrictHostKeyChecking=no ubuntu@${env.SERVER_HOST} <<EOF
-                        cd /opt/app
-                        docker compose -f docker-compose.${env.DEPLOY_ENV}.yml up -d --build
-                      EOF
-                    """
-                }
+                // Example deployment command
+                sh """
+                  echo "Deploying ${env.BRANCH_NAME} to ${env.DEPLOY_SERVER}"
+                """
             }
         }
     }
 
     post {
         success {
-            echo "✅ Deployment successful for ${env.BRANCH_NAME} → ${env.DEPLOY_ENV}"
+            echo "✅ Deployment successful for ${env.BRANCH_NAME} (${env.DEPLOY_ENV})"
         }
         failure {
             echo "❌ Deployment failed for ${env.BRANCH_NAME}"
