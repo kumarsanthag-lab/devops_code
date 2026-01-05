@@ -55,7 +55,7 @@ pipeline {
             echo "✅ Deployment successful for ${env.BRANCH_NAME} (${env.DEPLOY_ENV})"
         }
         failure {
-            echo "❌ Deployment failed for ${env.BRANCH_NAME}"
+            echo "❌ Deployments failed for ${env.BRANCH_NAME}"
         }
         always {
             cleanWs()
