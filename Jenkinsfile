@@ -2,49 +2,72 @@ pipeline {
     agent any
 
     environment {
-        DEPLOY_ENV = ""
-        DEPLOY_SERVER = ""
+        APP_NAME        = "sample-app"
+        IMAGE_TAG       = "${env.BUILD_NUMBER}"
+        DEPLOY_ENV      = ""
+        COMPOSE_PROFILE = ""
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                echo "Branch: ${env.BRANCH_NAME}"
+                echo "Checking out branch: ${env.BRANCH_NAME}"
                 checkout scm
             }
         }
 
-        stage('Set Environment') {
+        stage('Determine Deployment Environment') {
             steps {
                 script {
                     if (env.BRANCH_NAME == 'main') {
-                        env.DEPLOY_ENV = 'production'
-                        env.DEPLOY_SERVER = 'prod-server-ip'
-                    } 
-                    else if (env.BRANCH_NAME == 'release') {
-                        env.DEPLOY_ENV = 'staging'
-                        env.DEPLOY_SERVER = 'staging-server-ip'
-                    } 
-                    else if (env.BRANCH_NAME.startsWith('feature/')) {
-                        env.DEPLOY_ENV = 'development'
-                        env.DEPLOY_SERVER = 'dev-server-ip'
-                    } 
+                        env.DEPLOY_ENV = 'uat'
+                        env.COMPOSE_PROFILE = 'uat'
+                    }
+                    else if (env.BRANCH_NAME.startsWith('release/')) {
+                        env.DEPLOY_ENV = 'qa'
+                        env.COMPOSE_PROFILE = 'qa'
+                    }
+                    else if (env.BRANCH_NAME == 'develop' || env.BRANCH_NAME.startsWith('feature/')) {
+                        env.DEPLOY_ENV = 'dev'
+                        env.COMPOSE_PROFILE = 'dev'
+                    }
                     else {
-                        error "No deployment rule defined for branch: ${env.BRANCH_NAME}"
+                        error "❌ No deployment rule for branch: ${env.BRANCH_NAME}"
                     }
                 }
+                echo "Deployment Environment: ${env.DEPLOY_ENV}"
             }
         }
 
-        stage('Deploy') {
+        stage('Build Docker Image') {
             steps {
-                echo "Deploying to ${env.DEPLOY_ENV}"
-                echo "Target Server: ${env.DEPLOY_SERVER}"
-
-                // Example deployment command
                 sh """
-                  echo "Deploying ${env.BRANCH_NAME} to ${env.DEPLOY_SERVER}"
+                  docker build -t ${APP_NAME}:${IMAGE_TAG} .
+                """
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh """
+                  docker run --rm ${APP_NAME}:${IMAGE_TAG} npm test || exit 1
+                """
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                echo "Deploying to ${env.DEPLOY_ENV} environment"
+
+                sh """
+                  docker-compose --profile ${COMPOSE_PROFILE} down
+                  docker-compose --profile ${COMPOSE_PROFILE} up -d --build
                 """
             }
         }
@@ -52,10 +75,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment successful for ${env.BRANCH_NAME} (${env.DEPLOY_ENV})"
+            echo "✅ Deployment successful for ${env.BRANCH_NAME} → ${env.DEPLOY_ENV}"
         }
         failure {
-            echo "❌ Deployments failed for ${env.BRANCH_NAME}"
+            echo "❌ Pipeline failed for ${env.BRANCH_NAME}"
         }
         always {
             cleanWs()
