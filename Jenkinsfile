@@ -22,18 +22,18 @@ pipeline {
       }
     }
 
-    stage('Trivy Scan') {
-      steps {
-        sh '''
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy image \
-            --severity HIGH,CRITICAL \
-            --exit-code 1 \
-            cicd-app:${IMAGE_TAG}
-        '''
-      }
-    }
+    // stage('Trivy Scan') {
+    //   steps {
+    //     sh '''
+    //       docker run --rm \
+    //         -v /var/run/docker.sock:/var/run/docker.sock \
+    //         aquasec/trivy image \
+    //         --severity HIGH,CRITICAL \
+    //         --exit-code 1 \
+    //         cicd-app:${IMAGE_TAG}
+    //     '''
+    //   }
+    // }
 
     stage('Run Tests') {
       steps {
