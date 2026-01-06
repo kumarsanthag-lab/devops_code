@@ -1,19 +1,19 @@
 version: "3.8"
 services:
   dev:
-    image: cicd-app:latest
+    image: cicd-app:${IMAGE_TAG:-latest}
     container_name: app-dev
     ports:
       - "3001:3000"
 
   qa:
-    image: cicd-app:latest
+    image: cicd-app:${IMAGE_TAG:-latest}
     container_name: app-qa
     ports:
       - "3002:3000"
 
   uat:
-    image: cicd-app:latest
+    image: cicd-app:${IMAGE_TAG:-latest}
     container_name: app-uat
     ports:
       - "3003:3000"
