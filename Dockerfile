@@ -1,8 +1,13 @@
 FROM node:18-alpine
+
 WORKDIR /app
-RUN rm -rf .
-COPY package.json ./
-RUN npm install
+
+COPY package*.json ./
+
+RUN npm install --omit=dev --no-audit --no-fund
+
 COPY . .
+
 EXPOSE 3000
+
 CMD ["npm", "start"]
