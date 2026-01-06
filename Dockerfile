@@ -4,8 +4,8 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# Clean, deterministic install
-RUN npm ci --omit=dev
+# npm ci requires package-lock.json
+RUN npm ci --omit=dev && npm cache clean --force
 
 COPY . .
 
