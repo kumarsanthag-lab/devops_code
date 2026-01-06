@@ -1,9 +1,14 @@
-FROM node:18-alpine3.19
+FROM node:18-alpine
+
 WORKDIR /app
-COPY package.json ./
-RUN npm install
-RUN rm -rf node_modules package-lock.json
-RUN npm update express
+
+COPY package*.json ./
+
+# npm ci requires package-lock.json
+RUN npm ci --omit=dev && npm cache clean --force
+
 COPY . .
+
 EXPOSE 3000
+
 CMD ["npm", "start"]
