@@ -30,7 +30,7 @@ pipeline {
             aquasec/trivy image \
             --severity HIGH,CRITICAL \
             --exit-code 1 \
-            cicd-app:latest
+            cicd-app:${IMAGE_TAG}
         '''
       }
     }
