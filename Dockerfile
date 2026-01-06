@@ -1,14 +1,17 @@
-FROM node:18-alpine
+FROM node:18-alpine3.19
+
+RUN apk update && apk upgrade --no-cache
 
 WORKDIR /app
 
 COPY package*.json ./
 
-# npm ci requires package-lock.json
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm install --omit=dev --no-audit --no-fund
 
 COPY . .
 
-EXPOSE 3000
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
 
+EXPOSE 3000
 CMD ["npm", "start"]
