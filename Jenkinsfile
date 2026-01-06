@@ -36,7 +36,7 @@ pipeline {
           if (env.BRANCH_NAME == 'develop' || env.BRANCH_NAME.startsWith('feature/')) {
             sh 'docker-compose up -d dev'
           }
-          else if (env.BRANCH_NAME.startsWith('release/')) {
+          else if ( env.BRANCH_NAME == 'release'|| env.BRANCH_NAME.startsWith('release/')) {
             sh 'docker-compose up -d qa'
           }
           else if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME.startsWith('hotfix/')) {
