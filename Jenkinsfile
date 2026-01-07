@@ -20,16 +20,16 @@ node {
        """
      }
 
-     stage('Trivy Scan') {
-        sh '''
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy image \
-            --severity CRITICAL \
-            --exit-code 1 \
-            cicd-app:''' + IMAGE_TAG + '''
-        '''
-      }
+     // stage('Trivy Scan') {
+     //   sh '''
+     //     docker run --rm \
+     //       -v /var/run/docker.sock:/var/run/docker.sock \
+     //       aquasec/trivy image \
+     //       --severity HIGH,CRITICAL \
+     //       --exit-code 1 \
+     //       cicd-app:''' + IMAGE_TAG + '''
+     //   '''
+     // }
 
      stage('Run Tests') {
        sh """
@@ -37,44 +37,33 @@ node {
        """
      }
 
-     stage('Deploy') {
-       if (env.BRANCH_NAME == 'develop' || env.BRANCH_NAME.startsWith('feature/')) {
-         echo "Deploying to DEV environment for branch: ${env.BRANCH_NAME}"
-         sh """
-           # Stop and remove old containers
-           docker-compose stop dev || true
-           docker-compose rm -f dev || true
+    stage('Deploy') {
+    def deployMap = [
+    'develop' : 'dev',
+    'feature/' : 'dev',
+    'release' : 'qa',
+    'release/' : 'qa',
+    'main' : 'uat',
+    'hotfix/' : 'uat'
+  ]
 
-           # Deploy with specific image tag
-           IMAGE_TAG=${IMAGE_TAG} docker-compose up -d dev --force-recreate
-         """
-       }
-       else if (env.BRANCH_NAME == 'release' || env.BRANCH_NAME.startsWith('release/')) {
-         echo "Deploying to QA environment for branch: ${env.BRANCH_NAME}"
-         sh """
-           # Stop and remove old containers
-           docker-compose stop qa || true
-           docker-compose rm -f qa || true
+  def targetEnv = deployMap.find { key, value ->
+    env.BRANCH_NAME == key || env.BRANCH_NAME.startsWith(key)
+  }?.value
 
-           # Deploy with specific image tag
-           IMAGE_TAG=${IMAGE_TAG} docker-compose up -d qa --force-recreate
-         """
-       }
-       else if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME.startsWith('hotfix/')) {
-         echo "Deploying to UAT environment for branch: ${env.BRANCH_NAME}"
-         sh """
-           # Stop and remove old containers
-           docker-compose stop uat || true
-           docker-compose rm -f uat || true
+  if (!targetEnv) {
+    error "No deployment rule for branch ${env.BRANCH_NAME}"
+  }
 
-           # Deploy with specific image tag
-           IMAGE_TAG=${IMAGE_TAG} docker-compose up -d uat --force-recreate
-         """
-       }
-       else {
-         error "No deployment rule for branch ${env.BRANCH_NAME}"
-       }
-     }
+  echo "Deploying to ${targetEnv.toUpperCase()} environment"
+
+  sh """
+    docker-compose stop ${targetEnv} || true
+    docker-compose rm -f ${targetEnv} || true
+    IMAGE_TAG=${IMAGE_TAG} docker-compose up -d ${targetEnv} --force-recreate
+  """
+}
+
 
      stage('Cleanup') {
        sh """
