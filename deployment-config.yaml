@@ -1,0 +1,29 @@
+service:
+  name: cicd-app
+  image: cicd-app
+
+branches:
+  develop:
+    env: dev
+    composeService: dev
+    strategy: rolling
+
+  feature:
+    env: dev
+    composeService: dev
+    strategy: rolling
+
+  release:
+    env: qa
+    composeService: qa
+    strategy: rolling
+
+  main:
+    env: uat
+    composeService: uat
+    strategy: rolling
+
+  hotfix:
+    env: uat
+    composeService: uat
+    strategy: rolling

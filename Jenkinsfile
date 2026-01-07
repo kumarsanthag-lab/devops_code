@@ -1,52 +1,64 @@
-pipeline {
-  agent any
+node {
 
-  environment {
-    IMAGE_NAME = "cicd-app"
-    IMAGE_TAG  = "${BUILD_NUMBER}"
-  }
+  def IMAGE_TAG = "${BUILD_NUMBER}"
+  def config
 
-  stages {
+  try {
 
     stage('Checkout') {
-      steps {
-        checkout scm
-      }
+      checkout scm
+      config = readYaml file: 'deployment-config.yaml'
     }
 
     stage('Build Image') {
-      steps {
-        sh """
-          docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-        """
-      }
+      sh """
+        docker image prune -f
+        docker build --no-cache -t ${config.service.image}:${IMAGE_TAG} .
+        docker tag ${config.service.image}:${IMAGE_TAG} ${config.service.image}:latest
+      """
     }
 
     stage('Run Tests') {
-      steps {
-        sh """
-          docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} npm test
-        """
+      sh "docker run --rm ${config.service.image}:${IMAGE_TAG} npm test"
+    }
+
+    stage('Resolve Deployment Config') {
+
+      def branchKey = config.branches.keySet().find {
+        env.BRANCH_NAME == it || env.BRANCH_NAME.startsWith(it)
       }
+
+      if (!branchKey) {
+        error "No deployment configuration found for branch: ${env.BRANCH_NAME}"
+      }
+
+      env.TARGET_ENV = config.branches[branchKey].env
+      env.COMPOSE_SERVICE = config.branches[branchKey].composeService
+      env.DEPLOY_STRATEGY = config.branches[branchKey].strategy
+
+      echo """
+        Deployment resolved:
+        - Environment : ${env.TARGET_ENV}
+        - Strategy    : ${env.DEPLOY_STRATEGY}
+      """
     }
 
     stage('Deploy') {
-      steps {
-        script {
-          if (env.BRANCH_NAME == 'develop' || env.BRANCH_NAME.startsWith('feature/')) {
-            sh 'docker-compose up -d dev'
-          }
-          else if ( env.BRANCH_NAME == 'release'|| env.BRANCH_NAME.startsWith('release/')) {
-            sh 'docker-compose up -d qa'
-          }
-          else if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME.startsWith('hotfix/')) {
-            sh 'docker-compose up -d uat'
-          }
-          else {
-            error "No deployment rule for branch ${env.BRANCH_NAME}"
-          }
-        }
-      }
+      sh """
+        docker-compose stop ${env.COMPOSE_SERVICE} || true
+        docker-compose rm -f ${env.COMPOSE_SERVICE} || true
+        IMAGE_TAG=${IMAGE_TAG} docker-compose up -d ${env.COMPOSE_SERVICE} --force-recreate
+      """
     }
+
+    stage('Cleanup') {
+      sh "docker image prune -f"
+    }
+
+  } catch (e) {
+    currentBuild.result = 'FAILURE'
+    throw e
+  } finally {
+    echo "Pipeline completed for branch: ${env.BRANCH_NAME}"
   }
 }
